@@ -1,5 +1,6 @@
 import {
   AuthBindings,
+  AuthProvider,
   Authenticated,
   GitHubBanner,
   Refine,
@@ -42,6 +43,10 @@ import {
 } from "./pages/categories";
 import { Login } from "./pages/login";
 import { parseJwt } from "./utils/parse-jwt";
+import { API_BASE_URL } from "./providers";
+import { authProvider } from "./providers/auth";
+import { ShopOutlined } from "@ant-design/icons";
+import { WebsiteListPage } from "./pages/companies";
 
 const axiosInstance = axios.create();
 axiosInstance.interceptors.request.use((config) => {
@@ -54,82 +59,6 @@ axiosInstance.interceptors.request.use((config) => {
 });
 
 function App() {
-  const authProvider: AuthBindings = {
-    login: async ({ credential }: CredentialResponse) => {
-      const profileObj = credential ? parseJwt(credential) : null;
-
-      if (profileObj) {
-        localStorage.setItem(
-          "user",
-          JSON.stringify({
-            ...profileObj,
-            avatar: profileObj.picture,
-          })
-        );
-
-        localStorage.setItem("token", `${credential}`);
-
-        return {
-          success: true,
-          redirectTo: "/",
-        };
-      }
-
-      return {
-        success: false,
-      };
-    },
-    logout: async () => {
-      const token = localStorage.getItem("token");
-
-      if (token && typeof window !== "undefined") {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        axios.defaults.headers.common = {};
-        window.google?.accounts.id.revoke(token, () => {
-          return {};
-        });
-      }
-
-      return {
-        success: true,
-        redirectTo: "/login",
-      };
-    },
-    onError: async (error) => {
-      console.error(error);
-      return { error };
-    },
-    check: async () => {
-      const token = localStorage.getItem("token");
-
-      if (token) {
-        return {
-          authenticated: true,
-        };
-      }
-
-      return {
-        authenticated: false,
-        error: {
-          message: "Check failed",
-          name: "Token not found",
-        },
-        logout: true,
-        redirectTo: "/login",
-      };
-    },
-    getPermissions: async () => null,
-    getIdentity: async () => {
-      const user = localStorage.getItem("user");
-      if (user) {
-        return JSON.parse(user);
-      }
-
-      return null;
-    },
-  };
-
   return (
     <BrowserRouter>
       <GitHubBanner />
@@ -163,6 +92,17 @@ function App() {
                       canDelete: true,
                     },
                   },
+                  {
+                    name: "websites",
+                    list: "/websites",
+                    show: "/websites/:id",
+                    create: "/websites/create",
+                    edit: "/websites/edit/:id",
+                    meta: {
+                      label: "Websites",
+                      icon: <ShopOutlined />,
+                    },
+                  },
                 ]}
                 options={{
                   syncWithLocation: true,
@@ -187,6 +127,13 @@ function App() {
                       </Authenticated>
                     }
                   >
+                    <Route path="/blogs">
+                      <Route index element={<BlogPostList />} />
+                      <Route path="create" element={<BlogPostCreate />} />
+                      <Route path="edit/:id" element={<BlogPostEdit />} />
+                      <Route path="show/:id" element={<BlogPostShow />} />
+                    </Route>
+
                     <Route
                       index
                       element={<NavigateToResource resource="blog_posts" />}
@@ -203,8 +150,19 @@ function App() {
                       <Route path="edit/:id" element={<CategoryEdit />} />
                       <Route path="show/:id" element={<CategoryShow />} />
                     </Route>
+                    <Route
+                      path="/websites"
+                      element={
+                        <WebsiteListPage>
+                          <Outlet />
+                        </WebsiteListPage>
+                      }
+                    >
+                      <Route path="create" element={<WebsiteListPage />} />
+                    </Route>
                     <Route path="*" element={<ErrorComponent />} />
                   </Route>
+
                   <Route
                     element={
                       <Authenticated
